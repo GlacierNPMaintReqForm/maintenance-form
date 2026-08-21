@@ -87,8 +87,8 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 15px;">
-            <label>Attach Photo (Optional)</label>
-            <input type="file" id="photoInput" accept="image/*">
+            <label>Attach Photos (Optional - Select Up to 3)</label>
+            <input type="file" id="photoInput" accept="image/*" multiple>
         </div>
 
         <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
@@ -126,7 +126,7 @@
     const form = document.getElementById('maintForm');
     const scriptUrl = "https://script.google.com/macros/s/AKfycbzaecE0iGR0YufvC0YUGOKgycrsVPRp5dLLih37GyQHf6k6Rz-vos1Yin4_v-JuVxIC/exec";
 
-    form.addEventListener('submit', function(e) {
+    form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
         const btn = document.getElementById('subBtn');
@@ -134,21 +134,30 @@
         btn.innerText = 'Submitting...';
 
         const fileInput = document.getElementById('photoInput');
-        const file = fileInput.files[0];
+        const files = Array.from(fileInput.files).slice(0, 3); // max 3 photos
 
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const base64Data = event.target.result.split(',')[1];
-                sendData(base64Data, file.name, file.type);
-            };
-            reader.readAsDataURL(file);
-        } else {
-            sendData('', '', '');
+        const fileDataArray = [];
+        for (let file of files) {
+            const base64 = await readFileAsBase64(file);
+            fileDataArray.push({
+                data: base64,
+                name: file.name,
+                type: file.type
+            });
         }
+
+        sendData(fileDataArray);
     });
 
-    function sendData(base64Data, fileName, mimeType) {
+    function readFileAsBase64(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result.split(',')[1]);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function sendData(files) {
         const formData = new FormData(form);
         const params = new URLSearchParams();
 
@@ -156,9 +165,12 @@
             params.append(key, value);
         });
 
-        params.append('fileData', base64Data);
-        params.append('fileName', fileName);
-        params.append('mimeType', mimeType);
+        files.forEach((f, idx) => {
+            const num = idx === 0 ? '' : (idx + 1);
+            params.append('fileData' + num, f.data);
+            params.append('fileName' + num, f.name);
+            params.append('mimeType' + num, f.type);
+        });
 
         fetch(scriptUrl, {
             method: 'POST',
