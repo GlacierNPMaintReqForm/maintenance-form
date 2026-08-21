@@ -135,22 +135,18 @@
 
         fetch(SCRIPT_URL, {
             method: 'POST',
+            mode: 'no-cors',
             body: formData
         })
-        .then(res => res.json())
-        .then(response => {
-            if (response.result === 'success') {
-                msg.className = 'msg-success';
-                msg.innerText = `Request logged successfully! Ticket #${response.ticket}`;
-                msg.style.display = 'block';
-                form.reset();
-            } else {
-                throw new Error(response.error || 'Unknown script error');
-            }
+        .then(() => {
+            msg.className = 'msg-success';
+            msg.innerText = 'Maintenance request submitted to Google Sheets!';
+            msg.style.display = 'block';
+            form.reset();
         })
         .catch(err => {
             msg.className = 'msg-error';
-            msg.innerText = 'Error submitting request. Check console log.';
+            msg.innerText = 'Error submitting request. Check browser console.';
             msg.style.display = 'block';
             console.error(err);
         })
