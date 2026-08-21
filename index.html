@@ -13,7 +13,7 @@
         .form-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
         .form-group { flex: 1; min-width: 200px; }
         label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; color: #2d3748; text-transform: uppercase; }
-        input[type="text"], input[type="date"], input[type="number"], textarea {
+        input[type="text"], input[type="date"], input[type="number"], input[type="file"], textarea {
             width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 5px; box-sizing: border-box; font-size: 0.95rem;
         }
         textarea { resize: vertical; height: 90px; }
@@ -23,7 +23,6 @@
         button:hover { background-color: #0d281e; }
         button:disabled { background-color: #a0aec0; cursor: not-allowed; }
         #msg { margin-top: 15px; padding: 12px; border-radius: 5px; text-align: center; font-weight: 600; display: none; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        iframe { display: none; }
     </style>
 </head>
 <body>
@@ -34,9 +33,7 @@
         <h4>Glacier National Park Lodges</h4>
     </div>
 
-    <iframe name="hidden_iframe" id="hidden_iframe" onload="if(submitted) { showSuccess(); }"></iframe>
-
-    <form id="maintForm" action="https://script.google.com/macros/s/AKfycbzaecE0iGR0YufvC0YUGOKgycrsVPRp5dLLih37GyQHf6k6Rz-vos1Yin4_v-JuVxIC/exec" method="POST" target="hidden_iframe" onsubmit="disableButton(); submitted=true;">
+    <form id="maintForm">
         
         <div class="form-group" style="margin-bottom: 15px;">
             <label>Priority</label>
@@ -89,6 +86,11 @@
             <textarea name="Descripton of Work" required></textarea>
         </div>
 
+        <div class="form-group" style="margin-bottom: 15px;">
+            <label>Attach Photo (Optional)</label>
+            <input type="file" id="photoInput" accept="image/*">
+        </div>
+
         <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
             <label style="color: #4a5568; margin-bottom: 10px;">Labor Completed (Internal / Completion Use)</label>
             <div class="form-row">
@@ -121,21 +123,61 @@
 </div>
 
 <script>
-    var submitted = false;
-    
-    function disableButton() {
-        var btn = document.getElementById('subBtn');
+    const form = document.getElementById('maintForm');
+    const scriptUrl = "https://script.google.com/macros/s/AKfycbzaecE0iGR0YufvC0YUGOKgycrsVPRp5dLLih37GyQHf6k6Rz-vos1Yin4_v-JuVxIC/exec";
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const btn = document.getElementById('subBtn');
         btn.disabled = true;
         btn.innerText = 'Submitting...';
-    }
 
-    function showSuccess() {
-        var btn = document.getElementById('subBtn');
-        document.getElementById('msg').style.display = 'block';
-        document.getElementById('maintForm').reset();
-        btn.disabled = false;
-        btn.innerText = 'Submit Request';
-        submitted = false;
+        const fileInput = document.getElementById('photoInput');
+        const file = fileInput.files[0];
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const base64Data = event.target.result.split(',')[1];
+                sendData(base64Data, file.name, file.type);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            sendData('', '', '');
+        }
+    });
+
+    function sendData(base64Data, fileName, mimeType) {
+        const formData = new FormData(form);
+        const payload = {};
+
+        formData.forEach((value, key) => {
+            payload[key] = value;
+        });
+
+        payload['fileData'] = base64Data;
+        payload['fileName'] = fileName;
+        payload['mimeType'] = mimeType;
+
+        fetch(scriptUrl, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('msg').style.display = 'block';
+            form.reset();
+            const btn = document.getElementById('subBtn');
+            btn.disabled = false;
+            btn.innerText = 'Submit Request';
+        })
+        .catch(error => {
+            alert('Error submitting form: ' + error);
+            const btn = document.getElementById('subBtn');
+            btn.disabled = false;
+            btn.innerText = 'Submit Request';
+        });
     }
 </script>
 
