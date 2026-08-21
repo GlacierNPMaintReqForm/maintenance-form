@@ -87,7 +87,7 @@
         </div>
 
         <div class="form-group" style="margin-bottom: 15px;">
-            <label>Attach Photos (Optional - Select Up to 3)</label>
+            <label>Attach Photos (Optional - Up to 3)</label>
             <input type="file" id="photoInput" accept="image/*" multiple>
         </div>
 
@@ -131,33 +131,38 @@
         
         const btn = document.getElementById('subBtn');
         btn.disabled = true;
-        btn.innerText = 'Submitting...';
+        btn.innerText = 'Uploading Photos & Submitting...';
 
         const fileInput = document.getElementById('photoInput');
-        const files = Array.from(fileInput.files).slice(0, 3); // max 3 photos
+        const files = Array.from(fileInput.files).slice(0, 3);
 
-        const fileDataArray = [];
+        const photoUrls = [];
         for (let file of files) {
-            const base64 = await readFileAsBase64(file);
-            fileDataArray.push({
-                data: base64,
-                name: file.name,
-                type: file.type
-            });
+            try {
+                const link = await uploadToImgur(file);
+                if (link) photoUrls.push(link);
+            } catch (err) {
+                console.error("Photo upload failed:", err);
+            }
         }
 
-        sendData(fileDataArray);
+        sendData(photoUrls);
     });
 
-    function readFileAsBase64(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result.split(',')[1]);
-            reader.readAsDataURL(file);
+    async function uploadToImgur(file) {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const res = await fetch('https://api.imgur.com/3/image', {
+            method: 'POST',
+            headers: { Authorization: 'Client-ID 326f1c4df19665f' },
+            body: formData
         });
+        const data = await res.json();
+        return data.success ? data.data.link : null;
     }
 
-    function sendData(files) {
+    function sendData(photoUrls) {
         const formData = new FormData(form);
         const params = new URLSearchParams();
 
@@ -165,12 +170,9 @@
             params.append(key, value);
         });
 
-        files.forEach((f, idx) => {
-            const num = idx === 0 ? '' : (idx + 1);
-            params.append('fileData' + num, f.data);
-            params.append('fileName' + num, f.name);
-            params.append('mimeType' + num, f.type);
-        });
+        if (photoUrls[0]) params.append('Photo Link', photoUrls[0]);
+        if (photoUrls[1]) params.append('Photo Link 2', photoUrls[1]);
+        if (photoUrls[2]) params.append('Photo Link 3', photoUrls[2]);
 
         fetch(scriptUrl, {
             method: 'POST',
